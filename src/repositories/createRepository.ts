@@ -37,18 +37,6 @@ const axiosInstance = axios.create({
     },
 });
 
-const responseHandler = (response: any) => {
-    // format response: {key: string, body: any}
-
-    return {
-        ...response,
-        data: response?.data?.metadata,
-    };
-};
-
-// config reasponse handler
-axiosInstance.interceptors.response.use(responseHandler, null);
-
 export const fetcher = async <ResponseData = any>(
     url: string,
     config?: AxiosRequestConfig
