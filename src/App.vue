@@ -15,6 +15,7 @@ import ChatMessages from '@/components/ChatMessages.vue';
 import { ESTREAM_TYPE, IMesssage, MESSAGE_ROLE } from '@/types/message';
 import MessageRepository from '@/repositories/MessageRepository';
 import { VUE_APP_BACKEND_API_URL } from '@/constants/config';
+import {SSE} from 'sse.js'
 
 export default defineComponent({
     name: 'App',
@@ -36,39 +37,26 @@ export default defineComponent({
                 role: MESSAGE_ROLE.HUMAN,
                 content: messageInput.value,
             });
-            const aiResponse = await fetch(`${VUE_APP_BACKEND_API_URL}/message`, {
+
+            const aiResponse = new SSE(`${VUE_APP_BACKEND_API_URL}/message`, {
                 method: 'POST',
-                body: messageInput.value,
+                payload: messageInput.value,
                 headers: {
                     'Content-Type': 'text/event-stream',
-                },
+                }
             });
 
-            const reader = await aiResponse.body?.pipeThrough(new TextDecoderStream()).getReader();
-            if (reader) {
-                messages.value.push({
+            messages.value.push({
                     id: String(messages.value.length + 1),
                     role: MESSAGE_ROLE.AI,
                     content: '',
                 });
-            }
+
             const lastestMessage = messages.value[messages.value.length - 1];
-            (async function readLastestMessage() {
-                if (!reader) return;
-                const { value, done } = await reader?.read();
-                if (value) {
-                    console.log('data', value);
-                    if (value === '[DONE]') {
-                        reader.cancel();
-                        return;
-                    }
-                    const data = JSON.parse(value);
-                    if (data.content) lastestMessage.content += data.content;
-                }
-                if (!done) {
-                    setTimeout(readLastestMessage, 1);
-                }
-            })();
+            aiResponse.addEventListener(ESTREAM_TYPE.NEW_TOKEN,(e:any) => {
+                const data = JSON.parse(e.data);
+                lastestMessage.content += data.content;
+            });
             messageInput.value = '';
         };
 
